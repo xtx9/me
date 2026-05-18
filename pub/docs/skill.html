@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SKILLS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400;500;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:     #0a0a0a;
+  --green:  #00ff41;
+  --dim:    #007f21;
+  --red:    #ff3333;
+  --yellow: #ffff00;
+  --white:  #cccccc;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Noto Sans Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 20px 24px;
+}
+
+.section-title {
+  color: var(--green);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-shadow: 0 0 6px rgba(0,255,65,.5);
+  margin-bottom: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--dim);
+}
+
+.skill-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+}
+
+.skill-table th,
+.skill-table td {
+  border: 1px solid var(--dim);
+  padding: 7px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.skill-table th {
+  color: var(--green);
+  font-size: 11px;
+  letter-spacing: .06em;
+  background: rgba(0,255,65,.04);
+  font-weight: 500;
+}
+
+.skill-table td { color: var(--white); }
+
+.skill-table tr:hover td {
+  background: rgba(0,255,65,.03);
+}
+
+.tag {
+  display: inline-block;
+  border: 1px solid var(--dim);
+  color: var(--dim);
+  font-size: 10px;
+  padding: 1px 6px;
+  margin: 2px 2px 2px 0;
+  letter-spacing: .04em;
+  transition: color .15s, border-color .15s;
+}
+
+.tag:hover {
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(0,127,33,.2);
+  border: 1px solid var(--dim);
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(0,255,65,.4);
+}
+
+.bar-pct {
+  color: var(--dim);
+  font-size: 10px;
+  width: 32px;
+  text-align: right;
+}
+</style>
+</head>
+<body>
+
+<div class="section-title">// SKILLS &amp; TECHNOLOGIES</div>
+
+<table class="skill-table">
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Technologies</th>
+      <th>Proficiency</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Languages</td>
+      <td>
+        <span class="tag">TypeScript</span>
+        <span class="tag">JavaScript</span>
+        <span class="tag">Rust</span>
+        <span class="tag">Python</span>
+      </td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div>
+          <span class="bar-pct">90%</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>Frontend</td>
+      <td>
+        <span class="tag">React</span>
+        <span class="tag">Next.js</span>
+        <span class="tag">TailwindCSS</span>
+        <span class="tag">HTML/CSS</span>
+      </td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-track"><div class="bar-fill" style="width:85%"></div></div>
+          <span class="bar-pct">85%</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>Backend</td>
+      <td>
+        <span class="tag">Node.js</span>
+        <span class="tag">Express</span>
+        <span class="tag">PostgreSQL</span>
+        <span class="tag">Redis</span>
+      </td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+          <span class="bar-pct">80%</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>Tools</td>
+      <td>
+        <span class="tag">Git</span>
+        <span class="tag">Docker</span>
+        <span class="tag">Linux</span>
+        <span class="tag">Neovim</span>
+        <span class="tag">Bash</span>
+      </td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-track"><div class="bar-fill" style="width:75%"></div></div>
+          <span class="bar-pct">75%</span>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

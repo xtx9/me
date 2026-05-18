@@ -4,10 +4,12 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Terminal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💻</text></svg>"/>
 
-<!-- Google Fonts: Fira Code (터미널 고정폭 폰트) -->
+<!-- Google Fonts: Noto Sans Mono (한글 지원 등폭 폰트) + Fira Code (폴백) -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400;500;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet"/>
 
 <!--
   ────────────────────────────────────────────────────────────
@@ -33,19 +35,42 @@
 <link rel="stylesheet" href="css/terminal.css"/>
 <link rel="stylesheet" href="css/audio-player.css"/>
 <link rel="stylesheet" href="css/video-player.css"/>
+<link rel="stylesheet" href="css/doc-viewer.css"/>
+
+<!-- Firebase Analytics — module 방식, 가능한 일찍 fetch 시작 -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyBOP1Fr24TignmUpoMTpOI81ZdWzPfbwYw",
+    authDomain: "sf-terminal-theme.firebaseapp.com",
+    projectId: "sf-terminal-theme",
+    storageBucket: "sf-terminal-theme.firebasestorage.app",
+    messagingSenderId: "264299184102",
+    appId: "1:264299184102:web:caad9b4cff95f98a1ee027",
+    measurementId: "G-0QKY1209MT"
+  };
+  try {
+    const app = initializeApp(firebaseConfig);
+    getAnalytics(app);
+    window.__firebaseReady = true;
+  } catch (e) {
+    window.__firebaseReady = false;
+    window.__firebaseError = e.message;
+  }
+</script>
 </head>
 <body>
 <div id="app">
   <div id="terminal">
 
     <div id="titlebar">
-      <div class="dots">
-        <div class="dot dot-r"></div>
-        <div class="dot dot-y"></div>
-        <div class="dot dot-g"></div>
-      </div>
-      <span id="title-text">guest@system:~ — uptime: 0m 0s</span>
-      <span class="conn">ssh 192.168.1.1</span>
+      <nav class="titlebar-nav">
+        <button class="tnav-btn" onclick="runCommand('project')">프로젝트</button>
+        <button class="tnav-btn" onclick="runCommand('contact')">Contact</button>
+      </nav>
+      <span id="title-text">guest@system:~</span>
+      <span id="clock" class="conn"></span>
     </div>
 
     <div id="output"></div>
@@ -54,396 +79,63 @@
       <div id="prompt-row">
         <button class="attach-btn" title="파일 첨부" onclick="event.stopPropagation();fileInput.click()">+</button>
         <input id="file-input" type="file" style="display:none" accept="image/*,video/*,audio/*,*"/>
-        <span class="pts" id="prompt-ts"></span>
-        <span class="puser">guest@system:~$</span>
-        <textarea id="real-input" rows="1" autocomplete="off" spellcheck="false"></textarea>
+        <span class="puser">$</span>
+        <textarea id="real-input" rows="1" autocomplete="off" spellcheck="false"
+          placeholder="Enter=실행 | ↑↓=히스토리 | /·?=help | +=파일첨부"></textarea>
+        <button class="clear-btn" title="화면 지우기 (Clear)" onclick="event.stopPropagation();output.innerHTML=''">[×]</button>
+        <button class="send-btn" title="실행 (Enter)" onclick="event.stopPropagation();sendInput()">➤</button>
       </div>
-      <div id="hint">Enter = 실행 &nbsp;|&nbsp; Shift+Enter = 줄바꿈 &nbsp;|&nbsp; ↑↓ = 히스토리 &nbsp;|&nbsp; + = 파일 첨부</div>
     </div>
+
+    <footer id="terminal-footer">
+      <a href="#" class="footer-link" onclick="return false;">소개</a>
+      <span class="footer-sep">·</span>
+      <a href="#" class="footer-link" onclick="return false;">제휴제안</a>
+      <span class="footer-sep">·</span>
+      <a href="#" class="footer-link" onclick="return false;">이용약관</a>
+      <span class="footer-sep">·</span>
+      <a href="#" class="footer-link" onclick="return false;">개인정보처리방침</a>
+      <span class="footer-sep">·</span>
+      <a href="#" class="footer-link" onclick="return false;">정책</a>
+    </footer>
 
   </div>
 </div>
 
-<script>
-/* ═══════════════════════════════ STATE ══════════════════════════════ */
-const output    = document.getElementById('output');
-const realInput = document.getElementById('real-input');
-const promptTs  = document.getElementById('prompt-ts');
-const titleText = document.getElementById('title-text');
-const promptbar = document.getElementById('promptbar');
-const fileInput = document.getElementById('file-input');
+<!--
+  ════════════════════════════════════════════════════════════
+  JS 모듈 로딩 순서 (의존 관계에 따라 순서 고정)
 
-let cmdHistory = [], histIdx = -1, uptimeSec = 0, booting = true;
+  1. terminal-state.js    — DOM 참조 · 상태 변수 · 공통 유틸 · 시계
+  2. terminal-output.js   — 화면 출력 헬퍼 · 미디어 렌더러
+  3. terminal-commands.js — 명령어 목록 · help · runCommand · execCmd
+  4. terminal-input.js    — 입력창 이벤트 리스너
+  5. audio-visualizer.js  — 오디오 플레이어 (renderAudio)
+  6. video-player.js      — 비디오 플레이어 (renderVideo)
+  7. boot.js              — JSON 기반 부팅 시스템 (마지막 실행)
+  ════════════════════════════════════════════════════════════
+-->
 
-/* ═══════════════════════════════ HELPERS ════════════════════════════ */
-function now() {
-  const d = new Date();
-  return [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
-}
-function fmtTime(s){
-  if(!isFinite(s))return'00:00';
-  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-}
-function scrollBottom(){output.scrollTop=output.scrollHeight}
-function focusInput(){if(!booting&&!window.getSelection().toString())realInput.focus()}
+<!-- 1. 초기화 — DOM 참조, 상태, 유틸, 시계 -->
+<script src="js/terminal-state.js"></script>
 
-setInterval(()=>{
-  uptimeSec++;
-  titleText.textContent=`guest@system:~ — uptime: ${Math.floor(uptimeSec/60)}m ${uptimeSec%60}s`;
-},1000);
-setInterval(()=>{promptTs.textContent=`[${now()}]`},500);
-promptTs.textContent=`[${now()}]`;
+<!-- 2. 출력 — 텍스트·이미지·YouTube 렌더링 -->
+<script src="js/terminal-output.js"></script>
 
-/* ═══════════════════════════════ RENDER ════════════════════════════ */
-/* parse URLs in a string and return a DocumentFragment */
-function textToNodes(text){
-  const frag=document.createDocumentFragment();
-  const URL_RE=/(https?:\/\/[^\s]+)/g;
-  const parts=text.split(URL_RE);
-  parts.forEach(p=>{
-    if(/^https?:\/\//.test(p)){
-      const a=document.createElement('a');
-      a.href=p;a.textContent=p;a.target='_blank';a.rel='noopener noreferrer';
-      a.className='turl';a.onclick=e=>e.stopPropagation();
-      frag.appendChild(a);
-    } else {
-      frag.appendChild(document.createTextNode(p));
-    }
-  });
-  return frag;
-}
+<!-- 3. 명령어 — CMDS_LIST, renderHelp, runCommand, execCmd -->
+<script src="js/terminal-commands.js"></script>
 
-function appendRaw(node,withTs){
-  const row=document.createElement('div');
-  row.className='line glow';
-  if(withTs){
-    const ts=document.createElement('span');
-    ts.className='ts';ts.textContent=`[${now()}]`;
-    row.appendChild(ts);
-  }
-  row.appendChild(node);
-  output.appendChild(row);
-  scrollBottom();
-}
+<!-- 4. 입력창 — 이벤트 리스너 (Enter·↑↓·파일 첨부) -->
+<script src="js/terminal-input.js"></script>
 
-function appendText(text,colorClass,withTs){
-  if(text===''){const s=document.createElement('div');s.className='line spacer';output.appendChild(s);scrollBottom();return;}
-  const wrap=document.createElement('div');
-  wrap.className=`text ${colorClass}`;
-  wrap.appendChild(textToNodes(text));
-  appendRaw(wrap,withTs);
-}
-
-function appendLines(lines,colorClass,withTs){
-  lines.forEach(l=>appendText(l,colorClass,withTs));
-}
-
-function appendNode(node,withTs){
-  const wrap=document.createElement('div');
-  wrap.appendChild(node);
-  appendRaw(wrap,withTs);
-}
-
-/* ── help menu ─────────────────────────────────────── */
-const CMDS_LIST=[
-  {cmd:'about',    desc:'prints user bio'},
-  {cmd:'skills',   desc:'displays skills table'},
-  {cmd:'projects', desc:'lists projects'},
-  {cmd:'contact',  desc:'shows contact info'},
-  {cmd:'whoami',   desc:'prints current user'},
-  {cmd:'date',     desc:'prints current date/time'},
-  {cmd:'ls',       desc:'list directory contents'},
-  {cmd:'cat README.md',desc:'print README file'},
-  {cmd:'uname -a', desc:'prints system info'},
-  {cmd:'clear',    desc:'clears the terminal'},
-  {cmd:'help',     desc:'shows this message'},
-  {cmd:'https://youtu.be/...', desc:'paste YouTube URL to play video'},
-];
-
-function renderHelp(){
-  const wrap=document.createElement('div');
-  wrap.className='help-table';
-  const label=document.createElement('div');
-  label.style.cssText='color:var(--dim);font-size:11px;margin-bottom:4px';
-  label.textContent='Available commands — click to run:';
-  wrap.appendChild(label);
-  CMDS_LIST.forEach(({cmd,desc})=>{
-    const row=document.createElement('div');row.className='help-row';
-    const btn=document.createElement('button');
-    btn.className='help-cmd';btn.textContent=cmd;
-    btn.onclick=(e)=>{e.stopPropagation();runCommand(cmd);};
-    const d=document.createElement('span');d.className='help-desc';d.textContent='— '+desc;
-    row.appendChild(btn);row.appendChild(d);wrap.appendChild(row);
-  });
-  return wrap;
-}
-
-/* ═══════════════════════════════ MEDIA ════════════════════════════ */
-/* ── image ─────────────────────────────────────────── */
-function renderImage(file){
-  const url=URL.createObjectURL(file);
-  const div=document.createElement('div');div.className='img-out';
-
-  const meta=document.createElement('div');meta.className='media-meta';
-
-  const img=document.createElement('img');img.src=url;
-  img.onload=()=>{
-    meta.innerHTML=
-      `<span>FILE: ${file.name}</span>`+
-      `<span>SIZE: ${(file.size/1024).toFixed(1)} KB</span>`+
-      `<span>RES: ${img.naturalWidth} x ${img.naturalHeight} px</span>`;
-    scrollBottom();
-  };
-  img.onerror=()=>{ meta.textContent='이미지를 불러올 수 없습니다.'; };
-
-  div.appendChild(meta);div.appendChild(img);
-
-  appendText(`guest@system:~$ [file attached: ${file.name}]`,'c-green',true);
-  appendNode(div,false);
-}
-
-/* ── video ─────────────────────────────────────────── */
-/* renderVideo(file) 함수는 js/video-player.js 에 정의되어 있습니다.
-   플레이리스트 / 반복 3단계 / 브라우저+모니터 전체화면 기능 포함.
-   이 파일이 먼저 실행된 뒤 video-player.js 가 로드됩니다. */
-
-
-/* helpers */
-function makeBtn(label,onclick){
-  const b=document.createElement('button');
-  b.className='ctrl-btn';b.textContent=label;b.onclick=onclick;return b;
-}
-function makeRange(init,onchange){
-  const r=document.createElement('input');
-  r.type='range';r.min=0;r.max=1;r.step=.05;r.value=init;
-  r.oninput=()=>onchange(parseFloat(r.value));
-  return r;
-}
-
-/* ── youtube ───────────────────────────────────────── */
-function getYouTubeId(url){
-  try{
-    const u=new URL(url);
-    if(u.hostname==='youtu.be') return u.pathname.slice(1).split('?')[0];
-    if(u.hostname.includes('youtube.com')){
-      const v=u.searchParams.get('v');
-      if(v) return v;
-      const m=u.pathname.match(/\/embed\/([^/?]+)/);
-      if(m) return m[1];
-    }
-  }catch(e){}
-  return null;
-}
-
-function renderYouTube(url,videoId){
-  const wrap=document.createElement('div');wrap.className='yt-wrap';
-
-  const meta=document.createElement('div');meta.className='media-meta';
-  meta.innerHTML=`<span>YouTube</span><span>${url}</span>`;
-  wrap.appendChild(meta);
-
-  const box=document.createElement('div');box.className='yt-frame-box';
-  const iframe=document.createElement('iframe');
-  iframe.src=`https://www.youtube.com/embed/${videoId}?autoplay=1`;
-  iframe.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-  iframe.allowFullscreen=true;
-  box.appendChild(iframe);
-  wrap.appendChild(box);
-
-  appendNode(wrap,false);
-  scrollBottom();
-}
-
-/* ── file input handler ─────────────────────────────── */
-fileInput.addEventListener('change',()=>{
-  const file=fileInput.files[0];if(!file)return;
-  fileInput.value='';
-  if(file.type.startsWith('image/'))      renderImage(file);
-  else if(file.type.startsWith('video/')) renderVideo(file);
-  else if(file.type.startsWith('audio/')) renderAudio(file);
-  else{
-    appendText(`guest@system:~$ [file attached: ${file.name}]`,'c-green',true);
-    appendLines([`FILE: ${file.name}`,`SIZE: ${(file.size/1024).toFixed(1)} KB`,`TYPE: ${file.type||'unknown'}`],'c-white',true);
-  }
-});
-
-/* ═══════════════════════════════ COMMANDS ══════════════════════════ */
-function runCommand(raw){
-  const trimmed=raw.trim();if(!trimmed)return;
-  appendText(`guest@system:~$ ${trimmed}`,'c-green',true);
-  cmdHistory.unshift(trimmed);histIdx=-1;
-
-  /* YouTube URL 자동 감지 */
-  const ytId=getYouTubeId(trimmed);
-  if(ytId){renderYouTube(trimmed,ytId);return;}
-
-  const parts=trimmed.split(/\s+/);
-  const cmd=parts[0].toLowerCase();
-  const args=parts.slice(1);
-  execCmd(cmd,args,trimmed);
-}
-
-function execCmd(cmd,args,full){
-  switch(cmd){
-    case 'help':
-      appendNode(renderHelp(),true);break;
-
-    case 'about':
-      appendLines([
-        "Hi, I'm a developer. I build things for the web and beyond.",
-        "I enjoy creating functional, raw, and highly intentional interfaces.",
-        "This terminal is a reflection of how I work: keyboard-first,",
-        "low latency, no fluff. If you're reading this, you know what I mean.",
-      ],'c-white',true);break;
-
-    case 'skills':
-      appendLines([
-        '+-------------------+-----------------------------------------+',
-        '| Category          | Technologies                            |',
-        '+-------------------+-----------------------------------------+',
-        '| Languages         | TypeScript, JavaScript, Rust, Python    |',
-        '| Frontend          | React, TailwindCSS, Next.js, HTML/CSS   |',
-        '| Backend           | Node.js, Express, PostgreSQL, Redis     |',
-        '| Tools             | Git, Docker, Linux, Neovim, Bash        |',
-        '+-------------------+-----------------------------------------+',
-      ],'c-white',true);break;
-
-    case 'projects':
-      appendLines([
-        '[1] project-alpha   : A distributed messaging system built in Rust.',
-        '                      Status: active | Stars: 842',
-        '[2] react-terminal  : This website! Built with HTML, CSS, JS.',
-        '                      Status: active | Stars: 314',
-        '[3] data-viz-engine : A dashboard for visualizing complex datasets.',
-        '                      Status: archived | Stars: 207',
-        '[4] cli-toolkit     : A collection of shell utilities for devs.',
-        '                      Status: active | Stars: 91',
-      ],'c-white',true);break;
-
-    case 'contact':
-      appendLines([
-        'Email  : hello@example.com',
-        'GitHub : https://github.com/example',
-        'Twitter: https://twitter.com/example',
-        'PGP    : fingerprint 4D2A 8F1B C3E9 7A20 ...',
-      ],'c-white',true);break;
-
-    case 'whoami': appendText('guest','c-white',true);break;
-    case 'date':   appendText(new Date().toString(),'c-white',true);break;
-
-    case 'ls':
-      appendLines([
-        'drwxr-xr-x  projects/',
-        'drwxr-xr-x  scripts/',
-        '-rw-r--r--  README.md',
-        '-rw-r--r--  package.json',
-        '-rwxr-xr-x  deploy.sh',
-      ],'c-white',true);break;
-
-    case 'cat':
-      if(args[0]==='README.md'||args[0]==='readme.md'){
-        appendLines([
-          '# hello, world','',
-          'This terminal is my digital home.',
-          'Built with pure HTML, CSS and JavaScript.','',
-          "Type 'help' to see what you can do here.",
-          "Type 'about' to learn about me.",
-          "Type 'projects' to see what I've built.",'',
-          '-- guest',
-        ],'c-white',true);
-      } else if(!args[0]) appendText('cat: missing file operand','c-red',true);
-      else appendText(`cat: ${args[0]}: No such file or directory`,'c-red',true);
-      break;
-
-    case 'uname':
-      appendText('Linux system 6.1.0-18-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.76-1 (2024-02-01) x86_64 GNU/Linux','c-white',true);break;
-
-    case 'clear': output.innerHTML='';break;
-
-    default:
-      appendText(`bash: ${cmd}: command not found. Type 'help' for available commands.`,'c-red',true);
-  }
-}
-
-/* ═══════════════════════════════ INPUT ════════════════════════════ */
-function autoResize(){realInput.style.height='auto';realInput.style.height=realInput.scrollHeight+'px'}
-
-realInput.addEventListener('input',autoResize);
-realInput.addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&!e.shiftKey){
-    e.preventDefault();
-    const val=realInput.value;
-    realInput.value='';realInput.style.height='auto';
-    runCommand(val);
-  } else if(e.key==='ArrowUp'&&!realInput.value.includes('\n')){
-    e.preventDefault();
-    if(histIdx<cmdHistory.length-1)histIdx++;
-    realInput.value=cmdHistory[histIdx]||'';autoResize();
-  } else if(e.key==='ArrowDown'&&!realInput.value.includes('\n')){
-    e.preventDefault();
-    if(histIdx>0){histIdx--;realInput.value=cmdHistory[histIdx]||'';}
-    else if(histIdx===0){histIdx=-1;realInput.value='';}
-    autoResize();
-  }
-});
-document.getElementById('terminal').addEventListener('click',focusInput);
-
-/* ═══════════════════════════════ BOOT ═════════════════════════════ */
-const LOGO=[
-  '   _____ _    _  ______  _____ _______    ____   _____ ',
-  '  / ____| |  | |/ ____/ / ____|__   __|  / __ \\ / ____|',
-  ' | |  __| |  | | (___  | (___    | |    | |  | | (___  ',
-  ' | | |_ | |  | |\\___ \\  \\___ \\   | |    | |  | |\\___ \\ ',
-  ' | |__| | |__| |____) | ____) |  | |    | |__| |____) |',
-  '  \\_____|\\____/|_____/ |_____/   |_|     \\____/|_____/ ',
-].join('\n');
-
-const BOOT_MSGS=[
-  {t:'[  OK  ] Started udev Kernel Device Manager.',c:'c-green'},
-  {t:'[  OK  ] Mounted /proc - Kernel Proc File System.',c:'c-green'},
-  {t:'[  OK  ] Started Network Name Resolution.',c:'c-green'},
-  {t:'[  OK  ] Started OpenSSH Daemon.',c:'c-green'},
-  {t:'[  OK  ] Reached target Multi-User System.',c:'c-green'},
-  {t:'Checking system integrity............ PASS',c:'c-white'},
-  {t:'Decrypting user partition............. DONE',c:'c-white'},
-  {t:'Loading user profile.................. OK',c:'c-white'},
-  {t:'Establishing secure channel........... CONNECTED',c:'c-white'},
-  {t:'',c:'c-white'},
-  {t:`GUEST_OS v9.4.2 LTS  Last login: ${new Date().toDateString()}`,c:'c-dim'},
-  {t:"Type 'help' to see available commands.",c:'c-dim'},
-];
-
-function runBoot(){
-  promptbar.style.display='none';
-  const logoPre=document.createElement('pre');logoPre.id='logo';logoPre.textContent='';output.appendChild(logoPre);
-  let i=0;
-  const logoTimer=setInterval(()=>{
-    i+=3;logoPre.textContent=LOGO.substring(0,i);scrollBottom();
-    if(i>=LOGO.length){clearInterval(logoTimer);logoPre.textContent=LOGO;setTimeout(runMsgs,200);}
-  },5);
-  function runMsgs(){
-    let mi=0;
-    const msgTimer=setInterval(()=>{
-      if(mi>=BOOT_MSGS.length){clearInterval(msgTimer);bootDone();return;}
-      const{t,c}=BOOT_MSGS[mi++];
-      if(t===''){const s=document.createElement('div');s.className='line spacer';output.appendChild(s);scrollBottom();}
-      else appendText(t,c,false);
-    },85);
-  }
-  function bootDone(){booting=false;promptbar.style.display='';realInput.focus();}
-}
-
-runBoot();
-</script>
-
-<!-- ─── 오디오 비주얼라이저 모듈 (AudioVisualizer / renderAudio) ───
-     메인 스크립트(위)가 먼저 실행된 뒤 로드되므로
-     fmtTime / makeBtn / makeRange 등 전역 함수를 정상적으로 참조합니다. -->
+<!-- 5. 오디오 비주얼라이저 모듈 (AudioVisualizer / renderAudio) -->
 <script src="js/audio-visualizer.js"></script>
 
-<!-- ─── 동영상 플레이어 모듈 (VideoPlayer / renderVideo) ───
-     audio-visualizer.js 이후에 로드됩니다.
-     플레이리스트 · 반복3단계 · 브라우저/모니터 전체화면 기능 포함 -->
+<!-- 6. 동영상 플레이어 모듈 (VideoPlayer / renderVideo) -->
 <script src="js/video-player.js"></script>
+
+<!-- 7. JSON 기반 부팅 시스템 — 모든 전역 함수 로드 완료 후 실행 -->
+<script src="js/boot.js"></script>
+
 </body>
 </html>
