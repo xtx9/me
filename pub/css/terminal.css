@@ -1,0 +1,503 @@
+/* ══════════════════════════════════════════════════════════════════
+   terminal.css
+   터미널 메인 UI 스타일
+
+   포함 범위:
+     - CSS 변수 (디자인 토큰)
+     - 전역 리셋
+     - 터미널 레이아웃 (#app, #terminal)
+     - 타이틀바, 출력 영역, 프롬프트 바
+     - 텍스트 색상 유틸리티
+     - 미디어 공통 + 이미지 + 비디오 + YouTube
+     - 컨트롤 바 (공용)
+     - help 메뉴, 로고
+     - 애니메이션
+
+   관련 파일:
+     - css/audio-player.css  : 오디오 비주얼라이저 전용 스타일
+     - js/audio-visualizer.js: 오디오 플레이어 동작 로직
+══════════════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────────────
+   웹폰트 — D2Coding (한글 코딩 전용 등폭 폰트, jsDelivr CDN)
+   Noto Sans Mono → D2Coding → Fira Code → monospace 순으로 폴백
+────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'D2Coding';
+  src: url('https://cdn.jsdelivr.net/gh/naver/d2codingfont@master/D2Coding/D2Coding-Ver1.3.2-20180524.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/naver/d2codingfont@master/D2Coding/D2Coding-Ver1.3.2-20180524.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap; /* 폰트 로드 전 시스템 폰트로 먼저 렌더링 */
+}
+@font-face {
+  font-family: 'D2Coding';
+  src: url('https://cdn.jsdelivr.net/gh/naver/d2codingfont@master/D2CodingBold/D2CodingBold-Ver1.3.2-20180524.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/naver/d2codingfont@master/D2CodingBold/D2CodingBold-Ver1.3.2-20180524.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   전역 리셋
+────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ──────────────────────────────────────────────────────────────────
+   CSS 변수 (디자인 토큰) — 모든 색상은 이 변수만 참조
+   하드코딩 금지: var(--green) 형태로만 사용
+────────────────────────────────────────────────────────────────── */
+:root {
+  --bg:     #0a0a0a; /* 기본 배경색 */
+  --green:  #00ff41; /* 주 강조색 (터미널 녹색) */
+  --dim:    #007f21; /* 흐린 녹색 (보조 텍스트, 비활성) */
+  --red:    #ff3333; /* 오류, 삭제 */
+  --yellow: #ffff00; /* 경고, 안내 */
+  --white:  #cccccc; /* 일반 출력 텍스트 */
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   기본 레이아웃
+────────────────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  background: var(--bg);
+  /* 한글 우선: Noto Sans Mono → D2Coding → Fira Code → 시스템 등폭 */
+  font-family: 'Noto Sans Mono', 'D2Coding', 'Fira Code', monospace;
+  color: var(--green);
+  overflow: hidden; /* 터미널 외부 스크롤 방지 */
+}
+
+/* CRT 스캔라인 오버레이 — pointer-events:none 으로 클릭 방해 없음 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999; /* 모든 콘텐츠 위에 렌더링 */
+  background:
+    linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,.22) 50%),
+    linear-gradient(90deg, rgba(255,0,0,.04), rgba(0,255,0,.02), rgba(0,0,255,.04));
+  background-size: 100% 2px, 3px 100%; /* 가로 2px 줄 + 세로 3px 색수차 */
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   터미널 컨테이너
+────────────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 12px;
+}
+
+#terminal {
+  width: 100%;
+  max-width: 3840px;
+  height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  /* 이중 글로우: 가까운 녹색 + 먼 흐린 녹색 */
+  box-shadow: 0 0 20px rgba(0,255,65,.12), 0 0 60px rgba(0,255,65,.05);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   타이틀 바 (macOS 스타일 신호등 점 + 제목 + 연결 정보)
+────────────────────────────────────────────────────────────────── */
+#titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 36px;
+  background: #050505;
+  border-bottom: 1px solid var(--dim);
+  flex-shrink: 0;
+  user-select: none; /* 더블클릭 텍스트 선택 방지 */
+}
+
+/* 타이틀바 좌측 네비 버튼 */
+.titlebar-nav { display: flex; gap: 6px; align-items: center; }
+.tnav-btn {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: .06em;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: color .15s;
+}
+.tnav-btn:hover { color: var(--green); }
+
+#title-text { font-size: 11px; color: var(--dim); letter-spacing: .1em; }
+.conn       { font-size: 11px; color: var(--dim); opacity: .5; }
+
+/* ──────────────────────────────────────────────────────────────────
+   출력 영역 (#output)
+────────────────────────────────────────────────────────────────── */
+#output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  min-height: 0; /* flexbox에서 overflow 동작을 위해 필요 */
+}
+
+/* 얇은 커스텀 스크롤바 */
+#output::-webkit-scrollbar       { width: 4px; }
+#output::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+/* 출력 줄 기본 구조 */
+.line { display: flex; align-items: flex-start; margin-bottom: 3px; word-break: break-word; }
+.line.spacer { height: 8px; } /* 빈 줄 여백 */
+
+/* 타임스탬프 */
+.ts { color: var(--dim); font-size: 11px; margin-right: 10px; flex-shrink: 0; margin-top: 2px; }
+
+/* 텍스트 본문 */
+.text { white-space: pre-wrap; flex: 1; }
+
+/* ──────────────────────────────────────────────────────────────────
+   텍스트 색상 유틸리티 클래스
+   appendText(text, 'c-green', true) 형태로 사용
+────────────────────────────────────────────────────────────────── */
+.c-green  { color: var(--green);  font-weight: 700; } /* 명령어, 성공, 강조 */
+.c-dim    { color: var(--dim);                      } /* 타임스탬프, 보조 */
+.c-white  { color: var(--white);                    } /* 일반 출력 */
+.c-red    { color: var(--red);                      } /* 오류, 경고 */
+.c-yellow { color: var(--yellow);                   } /* 주의 메시지 */
+
+/* 녹색 글로우 텍스트 효과 */
+.glow { text-shadow: 0 0 4px rgba(0,255,65,.35); }
+
+/* ──────────────────────────────────────────────────────────────────
+   클릭 가능한 URL 링크
+────────────────────────────────────────────────────────────────── */
+.turl {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.turl:hover { color: #fff; }
+
+/* ──────────────────────────────────────────────────────────────────
+   help 메뉴
+────────────────────────────────────────────────────────────────── */
+.help-table { display: flex; flex-direction: column; gap: 1px; }
+.help-row   { display: flex; align-items: baseline; gap: 8px; line-height: 1.8; }
+.help-cmd {
+  color: var(--green);
+  font-weight: 700;
+  width: 140px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+.help-cmd:hover { text-decoration: underline; color: #fff; }
+.help-desc { color: var(--white); }
+
+/* ──────────────────────────────────────────────────────────────────
+   ASCII 로고 (부트 시퀀스)
+────────────────────────────────────────────────────────────────── */
+#logo {
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre;
+  color: var(--green);
+  text-shadow: 0 0 8px rgba(0,255,65,.5);
+  margin-bottom: 12px;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   프롬프트 바 (하단 입력 영역)
+────────────────────────────────────────────────────────────────── */
+#promptbar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--dim);
+  background: #050505;
+  padding: 10px 14px 8px;
+  font-size: 13px;
+  cursor: text; /* 바 전체 클릭 시 입력창 포커스 */
+}
+
+#prompt-row { display: flex; align-items: flex-start; gap: 6px; }
+
+/* + 파일 첨부 버튼 */
+.attach-btn {
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid var(--dim);
+  background: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: .15s;
+}
+.attach-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* 사용자명 표시 — $ 기호만 */
+.puser {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.7;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-top: 0;
+  align-self: flex-start;
+  padding-top: 1px;
+}
+
+/* 실제 입력 textarea */
+#real-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--white);
+  caret-color: var(--green); /* 커서 색상 */
+  caret-width: 3px;          /* 커서 두께 (Chromium 지원) */
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.7;
+  resize: none;
+  overflow: hidden;
+  min-height: 1.5em;
+  word-break: break-all;
+  text-shadow: 0 0 1px rgba(255,255,255,.15);
+}
+
+/* 화면 지우기 버튼 ([×] 터미널 스타일) */
+.clear-btn {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 7px;
+  border: none;
+  background: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .04em;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s;
+}
+.clear-btn:hover { color: var(--green); }
+.clear-btn:active { transform: scale(.92); }
+
+/* 전송 버튼 (텔레그램 스타일) */
+.send-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: none;
+  background: var(--green);
+  color: #000;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow .15s, transform .1s, opacity .15s;
+  box-shadow: 0 0 8px rgba(0,255,65,.35);
+}
+.send-btn:hover {
+  box-shadow: 0 0 14px rgba(0,255,65,.6);
+  opacity: .9;
+}
+.send-btn:active { transform: scale(.92); }
+
+@keyframes sendFlash {
+  0%   { background: #fff; box-shadow: 0 0 18px rgba(255,255,255,.8); transform: scale(1.08); }
+  60%  { background: var(--green); box-shadow: 0 0 12px rgba(0,255,65,.6); transform: scale(1); }
+  100% { background: var(--green); box-shadow: 0 0 8px rgba(0,255,65,.35); }
+}
+.send-btn.flash { animation: sendFlash .25s ease-out forwards; }
+
+/* 입력창 placeholder — 아무것도 없을 때 단축키 힌트 표시 */
+#real-input::placeholder {
+  color: var(--dim);
+  opacity: .65;
+  font-size: 11px;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   하단 푸터 링크 바
+────────────────────────────────────────────────────────────────── */
+#terminal-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 14px;
+  background: #050505;
+  border-top: 1px solid rgba(0,127,33,.25);
+  flex-wrap: wrap;
+}
+.footer-link {
+  color: var(--dim);
+  font-size: 10px;
+  text-decoration: none;
+  letter-spacing: .04em;
+  transition: color .15s;
+  cursor: pointer;
+}
+.footer-link:hover { color: var(--green); }
+.footer-sep {
+  color: rgba(0,127,33,.4);
+  font-size: 10px;
+  user-select: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   미디어 출력 — 공통
+────────────────────────────────────────────────────────────────── */
+.media-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--dim);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.media-meta span { color: var(--dim); }
+
+/* ── 이미지 출력 ── */
+.img-out img {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 4px;
+  border: 1px solid var(--dim);
+  display: block;
+  box-shadow: 0 0 8px rgba(0,255,65,.1);
+}
+
+/* ── 비디오/오디오 플레이어 외곽 래퍼 ── */
+.player {
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  overflow: hidden;
+  max-width: 520px;
+  box-shadow: 0 0 8px rgba(0,255,65,.08);
+}
+.player video { width: 100%; max-height: 220px; background: #000; display: block; }
+
+/* ── 진행 바 (비디오/오디오 공용) ── */
+.progress-wrap { height: 4px; background: var(--dim); cursor: pointer; }
+.progress-fill { height: 100%; background: var(--green); transition: width .1s linear; }
+
+/* ──────────────────────────────────────────────────────────────────
+   컨트롤 바 (비디오/오디오 공용)
+────────────────────────────────────────────────────────────────── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #050505;
+  color: var(--green);
+  font-size: 12px;
+}
+
+/* 공용 컨트롤 버튼 */
+.ctrl-btn {
+  background: none;
+  border: none;
+  color: var(--green);
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+  transition: .15s;
+}
+.ctrl-btn:hover   { color: #fff; }
+.ctrl-btn.active  { color: var(--green); } /* 활성 상태 (구 반복 버튼용) */
+
+/* 시간 표시 */
+.time-disp { color: var(--dim); font-size: 11px; white-space: nowrap; }
+
+/* 탄성 여백 (컨트롤 그룹 사이 공간 확장) */
+.spacer-flex { flex: 1; }
+
+/* 볼륨 슬라이더 */
+input[type=range] {
+  width: 72px;
+  accent-color: var(--green);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: var(--dim);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   YouTube 플레이어
+────────────────────────────────────────────────────────────────── */
+.yt-wrap { max-width: 520px; }
+
+/* 16:9 비율 유지 래퍼 (padding-top 56.25% 트릭) */
+.yt-frame-box {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 8px rgba(0,255,65,.08);
+}
+.yt-frame-box iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   애니메이션
+────────────────────────────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}

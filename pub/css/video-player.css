@@ -1,0 +1,759 @@
+/* ══════════════════════════════════════════════════════════════════
+   video-player.css — 동영상 플레이어 전용 스타일 (v3.0 개선판)
+   파일명: css/video-player.css
+
+   포함 범위:
+     - 비디오 무대 컨테이너 (.vp-stage)
+     - 현재 재생 중인 트랙명 표시 바 (.vp-track-name)
+     - 반복 모드 버튼 (.vp-repeat-btn) — 3단계 none/one/all 시각 구분
+     - 창크기 조절 버튼 + 슬라이딩 메뉴 (.vp-size-wrap, .vp-size-menu)
+     - FAKE 버튼 (.vp-fake-btn) 및 FAKE 이미지 오버레이 (.vp-fake-overlay)
+     - 옵션/스크린샷 버튼 (.vp-opt-btn, .vp-shot-btn)
+     - 드래그앤드롭 오버레이 (.vp-drop-overlay)
+     - 인라인 플레이리스트 (.vp-playlist)
+     - 옵션 패널 오버레이 (.vp-panel, 탭, 정보그리드, 드롭존)
+     - 스크린샷 출력 박스 (.vp-shot-out)
+     - 브라우저 전체화면 모드 (.player.vp-browser-fs)
+     - 모니터 전체화면 모드 (.player:fullscreen)
+
+   의존:
+     - css/terminal.css 가 먼저 로드되어야 합니다 (CSS 변수 정의)
+     - js/video-player.js 가 DOM을 동적으로 생성합니다
+══════════════════════════════════════════════════════════════════ */
+
+
+/* ──────────────────────────────────────────────────────────────────
+   비디오 무대 (stage)
+   — <video>와 옵션 패널(.vp-panel), FAKE 오버레이를 함께 담는 컨테이너
+   — 내부 요소들이 position:absolute 기준으로 오버레이됩니다
+────────────────────────────────────────────────────────────────── */
+.vp-stage {
+  position: relative; /* 오버레이 요소들의 absolute 기준점 */
+  width: 100%;
+  background: #000;
+}
+
+/* 비디오 클릭 가능 표시 */
+.vp-stage video {
+  cursor: pointer;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   FAKE 이미지 오버레이 (.vp-fake-overlay)
+   — isFakeOn=true 이고 영상이 일시정지 상태일 때 표시됩니다
+   — imgs/fake.png 이미지로 화면을 완전히 가려 위장합니다
+   — 기본 display:none → .show 클래스 추가 시 표시
+══════════════════════════════════════════════════════════════════ */
+.vp-fake-overlay {
+  position: absolute;   /* 비디오 위에 오버레이 */
+  inset: 0;             /* 상하좌우 전체 덮기 */
+  display: none;        /* 기본: 숨김 */
+  background: #000;     /* 이미지 로드 전 검정 배경 */
+  z-index: 5;           /* 옵션 패널(10)보다 아래, 비디오(기본)보다 위 */
+  cursor: pointer;      /* 클릭으로 재생 재개 가능 */
+  overflow: hidden;
+}
+/* .show 클래스 추가 시 표시 */
+.vp-fake-overlay.show {
+  display: block;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────
+   현재 재생 중인 트랙명 표시 바 (.vp-track-name)
+────────────────────────────────────────────────────────────────── */
+.vp-track-name {
+  background: #050505;
+  border-bottom: 1px solid var(--dim);
+  padding: 4px 12px;
+  font-size: 10px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.vp-track-name .vp-track-icon {
+  color: var(--green);
+  flex-shrink: 0;
+}
+.vp-track-name .vp-track-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  color: var(--white);
+}
+.vp-track-name .vp-track-idx {
+  color: var(--dim);
+  flex-shrink: 0;
+  font-size: 9px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   반복 모드 버튼 (.vp-repeat-btn)
+   3단계 모드 순환: 없음(none) → 1개(one) → 전체(all) → 없음...
+   시각적으로 명확히 구분합니다:
+     none: dim 색, 테두리 없음
+     one : 녹색 + 녹색 테두리 + 글로우
+     all : 노란색 + 노란 테두리 + 글로우
+══════════════════════════════════════════════════════════════════ */
+.vp-repeat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid transparent; /* 비활성 상태: 테두리 없음 */
+  border-radius: 3px;
+  color: var(--dim);             /* 비활성 상태: 흐린 색 */
+  font-family: inherit;
+  cursor: pointer;
+  background: none;
+  transition: color .15s, border-color .15s, box-shadow .15s;
+  flex-shrink: 0;
+}
+.vp-repeat-btn:hover {
+  color: var(--white);
+  border-color: var(--dim);
+}
+.vp-repeat-btn .vp-rep-icon  { font-size: 13px; line-height: 1; }
+.vp-repeat-btn .vp-rep-label { font-size: 9px; letter-spacing: .05em; }
+
+/* 1개 반복 활성 — 녹색 글로우 */
+.vp-repeat-btn.mode-one {
+  color: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 6px rgba(0,255,65,.4), 0 0 14px rgba(0,255,65,.12);
+}
+.vp-repeat-btn.mode-one .vp-rep-label { font-weight: 700; }
+
+/* 전체 반복 활성 — 노란색 글로우 (1개 반복과 색으로 명확히 구분) */
+.vp-repeat-btn.mode-all {
+  color: var(--yellow);
+  border-color: var(--yellow);
+  box-shadow: 0 0 6px rgba(255,255,0,.35), 0 0 14px rgba(255,255,0,.10);
+}
+.vp-repeat-btn.mode-all .vp-rep-label { font-weight: 700; }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   창크기 조절 버튼 + 슬라이딩 메뉴 (.vp-size-wrap)
+   클릭 시 3단계 옵션이 위쪽으로 슬라이딩하며 나타납니다.
+══════════════════════════════════════════════════════════════════ */
+
+/* 래퍼: 버튼과 팝업 메뉴를 함께 묶는 relative 컨테이너 */
+.vp-size-wrap {
+  position: relative; /* .vp-size-menu의 absolute 기준점 */
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 창크기 토글 버튼 */
+.vp-size-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  transition: color .15s, border-color .15s, box-shadow .15s;
+  flex-shrink: 0;
+}
+.vp-size-btn:hover {
+  color: var(--green);
+  border-color: var(--green);
+}
+/* 메뉴가 열린 상태 */
+.vp-size-btn.active {
+  color: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 6px rgba(0,255,65,.4), 0 0 14px rgba(0,255,65,.12);
+}
+
+/* ── 슬라이딩 팝업 메뉴 ──────────────────────────────────────────
+   기본: max-height:0 + opacity:0 (보이지 않음)
+   .open 클래스 추가 시: max-height 확장 + opacity:1 (슬라이딩 등장)
+   컨트롤 바 위쪽으로 열리도록 bottom:100% + mb 설정
+────────────────────────────────────────────────────────────────── */
+.vp-size-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);  /* 버튼 위쪽으로 열림 */
+  right: 0;                  /* 오른쪽 정렬 */
+  background: #0d0d0d;
+  border: 1px solid var(--dim);
+  border-radius: 5px;
+  overflow: hidden;
+  /* 슬라이딩 애니메이션: max-height 0 → 자동 */
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none; /* 닫혀있을 때 클릭 차단 */
+  transition: max-height .25s ease, opacity .2s ease;
+  z-index: 50; /* 다른 UI 요소 위에 표시 */
+  min-width: 130px;
+  box-shadow: 0 0 12px rgba(0,0,0,.6), 0 0 24px rgba(0,255,65,.08);
+}
+/* .open 클래스 추가 시 슬라이딩 열림 */
+.vp-size-menu.open {
+  max-height: 200px;  /* 3개 옵션이 들어갈 충분한 높이 */
+  opacity: 1;
+  pointer-events: auto; /* 클릭 허용 */
+}
+
+/* 각 창크기 옵션 버튼 */
+.vp-size-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s, color .12s;
+  border-bottom: 1px solid rgba(0,127,33,.2); /* 항목 사이 구분선 */
+}
+.vp-size-option:last-child { border-bottom: none; }
+.vp-size-option:hover {
+  background: rgba(0,255,65,.06);
+  color: var(--white);
+}
+/* 현재 활성 모드 강조 */
+.vp-size-option.active {
+  color: var(--green);
+  background: rgba(0,255,65,.04);
+}
+.vp-size-option.active .vp-size-icon { color: var(--green); }
+
+/* 아이콘: 큰 글자로 직관적으로 표시 */
+.vp-size-icon  { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.vp-size-label { font-size: 11px; letter-spacing: .03em; }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   FAKE 버튼 (.vp-fake-btn)
+   — 영상 위장 기능 토글 버튼
+   — OFF 상태: dim 색, 테두리 없음
+   — ON 상태: 빨간 테두리 + 글로우 (위험/경고 색으로 활성화 명시)
+══════════════════════════════════════════════════════════════════ */
+.vp-fake-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  transition: color .15s, border-color .15s, box-shadow .15s, transform .1s;
+  flex-shrink: 0;
+}
+.vp-fake-btn:hover {
+  color: var(--white);
+  border-color: var(--dim);
+}
+.vp-fake-btn:active { transform: scale(.93); }
+
+/* ON 상태: 빨간 경고색으로 활성화 표시 */
+.vp-fake-btn.fake-on {
+  color: var(--red);
+  border-color: var(--red);
+  box-shadow: 0 0 6px rgba(255,51,51,.4), 0 0 14px rgba(255,51,51,.15);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   옵션/스크린샷 버튼 (.vp-opt-btn, .vp-shot-btn)
+══════════════════════════════════════════════════════════════════ */
+.vp-opt-btn,
+.vp-shot-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  transition: color .15s, border-color .15s, box-shadow .15s, transform .1s;
+  flex-shrink: 0;
+}
+.vp-opt-btn:hover,
+.vp-shot-btn:hover {
+  color: var(--green);
+  border-color: var(--green);
+}
+.vp-opt-btn:active,
+.vp-shot-btn:active { transform: scale(.93); }
+
+/* 옵션 패널 열린 상태 */
+.vp-opt-btn.active {
+  color: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 6px rgba(0,255,65,.4), 0 0 14px rgba(0,255,65,.12);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   옵션 패널 오버레이 (.vp-panel)
+   — 비디오 화면 위에 떠 있는 정보/추가 탭 패널
+   — 기본 display:none → .open 클래스 추가 시 display:flex
+══════════════════════════════════════════════════════════════════ */
+.vp-panel {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.93);
+  border: 1px solid var(--dim);
+  display: none;
+  flex-direction: column;
+  z-index: 10; /* FAKE 오버레이(5)보다 위 */
+}
+.vp-panel.open { display: flex; }
+
+/* ── 탭 헤더 ── */
+.vp-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--dim);
+  background: #050505;
+  flex-shrink: 0;
+}
+.vp-panel-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 7px 4px;
+  cursor: pointer;
+  letter-spacing: .04em;
+  border-bottom: 2px solid transparent; /* 활성 탭 아래 녹색 선 */
+  transition: .15s;
+  white-space: nowrap;
+}
+.vp-panel-tab:hover  { color: var(--white); }
+.vp-panel-tab.active {
+  color: var(--green);
+  border-bottom-color: var(--green);
+}
+
+/* ── 탭 콘텐츠 영역 ── */
+.vp-tab-pane {
+  display: none;    /* 기본 숨김 */
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  flex-direction: column;
+  gap: 6px;
+}
+.vp-tab-pane.active { display: flex; }
+.vp-tab-pane::-webkit-scrollbar       { width: 3px; }
+.vp-tab-pane::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+/* ── 동영상 정보 탭 (.vp-info-grid) ── */
+.vp-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.vp-info-row {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.vp-info-label {
+  color: var(--dim);
+  width: 70px;
+  flex-shrink: 0;
+  font-family: var(--font-mono, 'Fira Code', monospace);
+}
+.vp-info-value {
+  color: var(--white);
+  word-break: break-all;
+}
+
+/* ── 동영상 추가 탭 (.vp-add-wrap + .vp-drop-zone) ── */
+.vp-add-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vp-drop-zone {
+  border: 1px dashed var(--dim);
+  border-radius: 4px;
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.9;
+  transition: .15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.vp-drop-zone:hover,
+.vp-drop-zone.drag-over {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(0,255,65,.04);
+}
+.vp-drop-zone .vp-dz-icon  { font-size: 26px; line-height: 1; margin-bottom: 4px; }
+.vp-drop-zone .vp-dz-title { font-size: 11px; color: var(--white); }
+.vp-drop-zone:hover .vp-dz-title,
+.vp-drop-zone.drag-over .vp-dz-title { color: var(--green); }
+.vp-drop-zone .vp-dz-sub   { font-size: 10px; color: var(--dim); }
+
+/* 추가 결과 안내 메시지 */
+.vp-add-msg {
+  font-size: 10px;
+  color: var(--yellow);
+  min-height: 14px;
+  text-align: center;
+}
+
+/* ── 패널 닫기 버튼 ── */
+.vp-panel-close {
+  align-self: flex-end;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--dim);
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: .15s;
+  margin: 4px 12px 8px;
+}
+.vp-panel-close:hover { border-color: var(--green); color: var(--green); }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   스크린샷 출력 박스 (.vp-shot-out)
+   — 캡처된 PNG의 썸네일 + 메타 + 다운로드 버튼을 함께 표시
+══════════════════════════════════════════════════════════════════ */
+.vp-shot-out {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--dim);
+  border-radius: 5px;
+  padding: 10px;
+  background: rgba(0,255,65,.03);
+  margin: 4px 0;
+}
+.vp-shot-thumb {
+  width: 120px;
+  height: auto;
+  max-height: 80px;
+  object-fit: cover;
+  border: 1px solid var(--dim);
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: #000;
+}
+.vp-shot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.vp-shot-msg {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.vp-shot-meta {
+  color: var(--dim);
+  font-size: 10px;
+  font-family: var(--font-mono, 'Fira Code', monospace);
+  word-break: break-all;
+}
+/* 다운로드 버튼 (a 태그를 버튼처럼 스타일링) */
+.vp-shot-btn-dl {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 12px;
+  margin-top: 2px;
+  border: 1px solid var(--green);
+  border-radius: 3px;
+  color: var(--green);
+  font-size: 11px;
+  font-family: var(--font-mono, 'Fira Code', monospace);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  transition: .15s;
+}
+.vp-shot-btn-dl:hover {
+  background: var(--green);
+  color: #000;
+  box-shadow: 0 0 8px rgba(0,255,65,.4);
+}
+
+
+/* ──────────────────────────────────────────────────────────────────
+   드래그앤드롭 오버레이 (플레이어 전체)
+   — 동영상을 플레이어 위로 끌어다 놓을 때 표시되는 시각 힌트
+────────────────────────────────────────────────────────────────── */
+.vp-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  border: 2px dashed var(--green);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--green);
+  font-size: 13px;
+  pointer-events: none; /* 드래그 이벤트만 통과, 클릭은 차단 */
+  z-index: 20;          /* 옵션 패널(10), FAKE 오버레이(5)보다 위 */
+}
+.vp-drop-overlay.show { display: flex; }
+.vp-drop-icon { font-size: 28px; }
+
+
+/* ──────────────────────────────────────────────────────────────────
+   인라인 플레이리스트 뷰 (.vp-playlist)
+   — 컨트롤 바 아래에 트랙 목록을 표시합니다
+────────────────────────────────────────────────────────────────── */
+.vp-playlist {
+  background: #050505;
+  border-top: 1px solid var(--dim);
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.vp-playlist:empty { display: none; } /* 항목 없으면 숨김 */
+.vp-playlist::-webkit-scrollbar       { width: 3px; }
+.vp-playlist::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+/* 플레이리스트 항목 */
+.vp-pl-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--dim);
+  user-select: none;
+  transition: background .1s;
+}
+.vp-pl-item:hover               { background: rgba(0,255,65,.04); color: var(--white); }
+.vp-pl-item.playing             { color: var(--green); }
+.vp-pl-item .vp-pl-icon         { flex-shrink: 0; width: 12px; text-align: center; font-size: 9px; }
+.vp-pl-item.playing .vp-pl-icon { color: var(--green); }
+.vp-pl-item .vp-pl-idx          { color: var(--dim); width: 16px; text-align: right; flex-shrink: 0; font-size: 9px; }
+.vp-pl-item .vp-pl-name         { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vp-pl-item.playing .vp-pl-name { color: var(--green); }
+.vp-pl-item .vp-pl-size         { color: var(--dim); flex-shrink: 0; font-size: 9px; }
+.vp-pl-item .vp-pl-del {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.vp-pl-item .vp-pl-del:hover { color: var(--red); }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   확대 모드 공통 — 기본으로 돌아가기 버튼 (.vp-exit-btn)
+   — browser / monitor 확대 모드에서 화면 우상단에 항상 표시
+══════════════════════════════════════════════════════════════════ */
+.vp-exit-btn {
+  display: none; /* 기본: 숨김 — 확대 모드에서만 표시 */
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10000;
+  background: rgba(0, 0, 0, .80);
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: .04em;
+  padding: 5px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.vp-exit-btn:hover {
+  background: rgba(0, 255, 65, .14);
+  box-shadow: 0 0 8px rgba(0, 255, 65, .35);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   브라우저 전체화면 모드 (.player.vp-browser-fs)
+   — JS에서 classList.add('vp-browser-fs')로 적용합니다
+   — CSS position:fixed으로 브라우저 뷰포트 전체를 점유합니다
+   — 터미널 스캔라인(z-index:999)보다 위에 표시됩니다
+══════════════════════════════════════════════════════════════════ */
+.player.vp-browser-fs {
+  position: fixed !important;   /* 스태킹 컨텍스트 완전 탈출 */
+  inset: 0 !important;          /* 뷰포트 전체 덮기 */
+  z-index: 9998;                /* 스캔라인(999)보다 위 */
+  max-width: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  overflow: hidden;
+}
+/* 브라우저 전체화면 시 stage가 남은 공간을 모두 채우도록 */
+.player.vp-browser-fs .vp-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* 브라우저 전체화면 시 비디오가 stage 전체를 채우도록 */
+.player.vp-browser-fs .vp-stage video {
+  flex: 1;
+  width: 100%;
+  max-height: none !important;
+  object-fit: contain;  /* 비율 유지하며 영역에 맞춤 */
+  min-height: 0;
+}
+/* 브라우저 전체화면 시 FAKE 오버레이도 전체화면에 맞게 확장 */
+.player.vp-browser-fs .vp-fake-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+.player.vp-browser-fs .vp-fake-overlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* 브라우저 전체화면 시 컨트롤 영역 고정 */
+.player.vp-browser-fs .progress-wrap,
+.player.vp-browser-fs .vp-track-name,
+.player.vp-browser-fs .controls {
+  flex-shrink: 0;
+}
+/* 브라우저 전체화면 시 플레이리스트 최소화 */
+.player.vp-browser-fs .vp-playlist {
+  max-height: 80px;
+  flex-shrink: 0;
+}
+/* 브라우저 전체화면 시 돌아가기 버튼 표시 */
+.player.vp-browser-fs .vp-exit-btn {
+  display: block;
+}
+/* 브라우저 전체화면 시 창크기 메뉴 z-index 보정 */
+.player.vp-browser-fs .vp-size-menu {
+  z-index: 10001;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   모니터 전체화면 모드 (.player:fullscreen)
+   — Fullscreen API가 적용될 때 브라우저가 자동으로 :fullscreen 의사 클래스를 적용합니다
+══════════════════════════════════════════════════════════════════ */
+.player:fullscreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  overflow: hidden;
+}
+/* 모니터 전체화면 시 stage가 남은 공간 전부 차지 */
+.player:fullscreen .vp-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* 모니터 전체화면 시 비디오가 stage 전체를 채우도록 */
+.player:fullscreen .vp-stage video {
+  flex: 1;
+  width: 100%;
+  object-fit: contain;  /* 비율 유지하며 맞춤 */
+  max-height: none !important;
+  min-height: 0;
+}
+/* 모니터 전체화면 시 컨트롤 고정 */
+.player:fullscreen .progress-wrap,
+.player:fullscreen .vp-track-name,
+.player:fullscreen .controls {
+  flex-shrink: 0;
+}
+/* 모니터 전체화면 시 플레이리스트 최소화 */
+.player:fullscreen .vp-playlist {
+  max-height: 80px;
+  flex-shrink: 0;
+}
+/* 모니터 전체화면 시 돌아가기 버튼 표시 */
+.player:fullscreen .vp-exit-btn {
+  display: block;
+}
+
+/* 표준 :fullscreen과 웹킷(-webkit) 접두사 모두 처리 */
+.player:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  overflow: hidden;
+}
+.player:-webkit-full-screen .vp-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.player:-webkit-full-screen .vp-stage video {
+  flex: 1;
+  width: 100%;
+  object-fit: contain;
+  max-height: none !important;
+  min-height: 0;
+}
+.player:-webkit-full-screen .vp-exit-btn {
+  display: block;
+}

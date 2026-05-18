@@ -1,0 +1,133 @@
+{
+  "commands": [
+    {
+      "name": "about",
+      "class": "c-white",
+      "function": null,
+      "desc": "prints user bio",
+      "action": "lines",
+      "output": [
+        "Hi, I'm a developer. I build things for the web and beyond.",
+        "I enjoy creating functional, raw, and highly intentional interfaces.",
+        "This terminal is a reflection of how I work: keyboard-first,",
+        "low latency, no fluff. If you're reading this, you know what I mean."
+      ]
+    },
+    {
+      "name": "skills",
+      "class": "c-white",
+      "function": null,
+      "desc": "displays skills page",
+      "action": "iframe",
+      "url": "docs/skill.html",
+      "title": "SKILLS"
+    },
+    {
+      "name": "projects",
+      "class": "c-white",
+      "function": null,
+      "desc": "lists projects",
+      "action": "lines",
+      "output": [
+        "[1] project-alpha   : A distributed messaging system built in Rust.",
+        "                      Status: active | Stars: 842",
+        "[2] react-terminal  : This website! Built with HTML, CSS, JS.",
+        "                      Status: active | Stars: 314",
+        "[3] data-viz-engine : A dashboard for visualizing complex datasets.",
+        "                      Status: archived | Stars: 207",
+        "[4] cli-toolkit     : A collection of shell utilities for devs.",
+        "                      Status: active | Stars: 91"
+      ]
+    },
+    {
+      "name": "contact",
+      "class": "c-white",
+      "function": null,
+      "desc": "shows contact page",
+      "action": "iframe",
+      "url": "docs/contact.html",
+      "title": "CONTACT"
+    },
+    {
+      "name": "whoami",
+      "class": "c-white",
+      "function": null,
+      "desc": "prints current user",
+      "action": "lines",
+      "output": [
+        "guest"
+      ]
+    },
+    {
+      "name": "date",
+      "class": "c-white",
+      "function": "cmdDate",
+      "desc": "prints current date/time",
+      "action": "exec"
+    },
+    {
+      "name": "ls",
+      "class": "c-white",
+      "function": null,
+      "desc": "list directory contents",
+      "action": "lines",
+      "output": [
+        "drwxr-xr-x  projects/",
+        "drwxr-xr-x  scripts/",
+        "-rw-r--r--  README.md",
+        "-rw-r--r--  package.json",
+        "-rwxr-xr-x  deploy.sh"
+      ]
+    },
+    {
+      "name": "cat README.md",
+      "class": "c-white",
+      "function": null,
+      "desc": "print README file",
+      "action": "lines",
+      "output": [
+        "# hello, world",
+        "",
+        "This terminal is my digital home.",
+        "Built with pure HTML, CSS and JavaScript.",
+        "",
+        "Type 'help' to see what you can do here.",
+        "Type 'about' to learn about me.",
+        "Type 'projects' to see what I've built.",
+        "",
+        "-- guest"
+      ]
+    },
+    {
+      "name": "uname -a",
+      "class": "c-white",
+      "function": null,
+      "desc": "prints system info",
+      "action": "lines",
+      "output": [
+        "Linux system 6.1.0-18-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.76-1 (2024-02-01) x86_64 GNU/Linux"
+      ]
+    },
+    {
+      "name": "clear",
+      "class": "c-dim",
+      "function": "cmdClear",
+      "desc": "clears the terminal",
+      "action": "exec"
+    },
+    {
+      "name": "help",
+      "class": "c-dim",
+      "function": "cmdHelp",
+      "desc": "shows this message",
+      "action": "exec"
+    },
+    {
+      "name": "https://youtu.be/…",
+      "class": "c-dim",
+      "function": null,
+      "desc": "paste YouTube URL to play",
+      "action": "youtube"
+    }
+  ]
+}
