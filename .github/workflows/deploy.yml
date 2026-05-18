@@ -1,8 +1,9 @@
 name: Deploy Pages
 
 on:
-  repository_dispatch:
-    types: [sync-pub]
+  push:
+    paths:
+      - 'pub/**'
 
 permissions:
   contents: read
@@ -15,9 +16,6 @@ jobs:
     steps:
       - name: Checkout public repo
         uses: actions/checkout@v3
-
-      - name: Ensure pub directory exists
-        run: mkdir -p pub
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
