@@ -1,0 +1,28 @@
+name: Deploy Pages
+
+on:
+  repository_dispatch:
+    types: [sync-pub]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 공개 저장소 체크아웃
+      - name: Checkout public repo
+        uses: actions/checkout@v3
+
+      # pub 디렉토리 보장 (없으면 생성)
+      - name: Ensure pub directory exists
+        run: |
+          mkdir -p pub
+
+      # 실제 빌드 및 배포 단계
+      # 여기서는 단순히 pub 디렉토리 기반으로 Pages를 배포한다고 가정
+      - name: Deploy to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./pub
+
+      - name: Deploy
+        uses: actions/deploy-pages@v4
